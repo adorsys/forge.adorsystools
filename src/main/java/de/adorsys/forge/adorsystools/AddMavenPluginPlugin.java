@@ -37,6 +37,10 @@ public class AddMavenPluginPlugin implements Plugin {
 		plugin.setArtifactId(artifact);
 		plugin.setVersion(version);
 
+		if (pom.getBuild().getPlugins().contains(plugin)) {
+			return;
+		}
+
 		pom.getBuild().getPlugins().add(plugin);
 
 		mvnFacet.setPOM(pom);
