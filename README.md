@@ -31,6 +31,6 @@ Setup DDL Generation based on JPA
 
 `hbm2ddl-setup`
 
-Run DDL genration:
+Run DDL generation:
 
 `mvn hibernate3:hbm2ddl`
