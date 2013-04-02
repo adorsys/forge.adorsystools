@@ -1,7 +1,7 @@
-forge.adorsystools
+JBoss Forge Adorsys Tools
 ==================
 
-forge commands to setup maven release properties, ddl generation (hbm2ddl) and jboss deployment
+Forge commands to setup maven release properties, ddl generation (hbm2ddl) and jboss deployment and maven pom cleanup...
 
 Installation
 ============
