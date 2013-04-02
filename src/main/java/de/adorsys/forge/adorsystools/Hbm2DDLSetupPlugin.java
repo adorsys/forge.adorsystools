@@ -128,6 +128,7 @@ public class Hbm2DDLSetupPlugin implements Plugin {
 		mvnFacet.setPOM(pom);
 	}
 
+	@SuppressWarnings("unchecked")
 	private void createDatabaseProperties(ResourceFacet resourceFacet) {
 		String render = databasePropsCompiler.render(new HashMap<Object, Object>());
 

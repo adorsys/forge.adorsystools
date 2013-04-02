@@ -24,7 +24,7 @@ public class Hbm2DDLSetupPluginTest extends AbstractShellTest
 	{
 		Project p = initializeJavaProject();
 		getShell().execute("hbm2ddl-setup");
-		Assert.assertTrue(new File("src/main/resources/database.properties").exists());
+		Assert.assertTrue(new File(p.getProjectRoot().getUnderlyingResourceObject(), "src/main/resources/database.properties").exists());
 
 	}
 }
