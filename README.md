@@ -8,7 +8,7 @@ Installation
 
 `forge git-plugin https://github.com/adorsys/forge.adorsystools`
 
-Cleanup Dependency and Plugin-Verions in a Maven-Multi-Module Project
+Cleanup Dependency and Plugin-Versions in a Maven-Multi-Module Project
 =====================================================================
 
 This command moves dependeny and plugin-versions to the DependencyManagement oder PluginManagement Section of the root POM
