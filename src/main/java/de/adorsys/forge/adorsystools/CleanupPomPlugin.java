@@ -2,6 +2,8 @@ package de.adorsys.forge.adorsystools;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -10,6 +12,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
+import java.util.TreeSet;
 
 import javax.inject.Inject;
 
@@ -52,14 +55,24 @@ public class CleanupPomPlugin implements Plugin {
 	public void defaultCommand(@PipeIn String in, PipeOut out) {
 		Project currentProject = shell.getCurrentProject();
 		final MavenCoreFacet mvnFacet = currentProject.getFacet(MavenCoreFacet.class);
+		DependencyFacet dependencyFacet = currentProject.getFacet(DependencyFacet.class);
 
 
 		List<Dependency> dependencyMgmt = new ArrayList<Dependency>();
-		Set<org.apache.maven.model.Plugin> pluginMgmt = new HashSet<org.apache.maven.model.Plugin>();
+		TreeSet<org.apache.maven.model.Plugin> pluginMgmt = new TreeSet<org.apache.maven.model.Plugin>(new Comparator<org.apache.maven.model.Plugin>() {
+
+			@Override
+			public int compare(org.apache.maven.model.Plugin a, org.apache.maven.model.Plugin b) {
+				return a.getKey().compareTo(b.getKey());
+			}
+		});
 
 		Properties properties = new Properties();
 		cleanUpProject(dependencyMgmt, pluginMgmt, properties);
 		mergeDependencies(dependencyMgmt);
+		sort(dependencyMgmt);
+
+		promptForMissingPluginVersions(pluginMgmt, dependencyFacet);
 
 		DependencyManagement dependencyManagement = new DependencyManagement();
 		dependencyManagement.setDependencies(dependencyMgmt);
@@ -75,47 +88,83 @@ public class CleanupPomPlugin implements Plugin {
 		mvnFacet.setPOM(pom);
 	}
 
+	private void promptForMissingPluginVersions(Collection<org.apache.maven.model.Plugin> pluginMgmt, DependencyFacet dependencyFacet) {
+		for (org.apache.maven.model.Plugin plugin : pluginMgmt) {
+			if (plugin.getVersion() != null) {
+				continue;
+			}
+			List<org.jboss.forge.project.dependencies.Dependency> resolveAvailableVersions = dependencyFacet.resolveAvailableVersions(DependencyBuilder.create()
+					.setGroupId(plugin.getGroupId() == null ? "org.apache.maven.plugins": plugin.getGroupId())
+					.setArtifactId(plugin.getArtifactId())
+					.setVersion("[1.0,)"));
+			org.jboss.forge.project.dependencies.Dependency choiceTyped = prompt.promptChoiceTyped(
+					"Non uniqe Verions of a dependency. Select a version", resolveAvailableVersions);
+			plugin.setVersion(choiceTyped.getVersion());
+		}
+	}
+
+	private void sort(List<Dependency> dependencyMgmt) {
+		Collections.sort(dependencyMgmt, new Comparator<Dependency>() {
+
+			@Override
+			public int compare(Dependency a, Dependency b) {
+				int groupCompare = a.getGroupId().compareTo(b.getGroupId());
+				if (groupCompare != 0) {
+					return groupCompare;
+				}
+				int artifactCompare = a.getArtifactId().compareTo(b.getArtifactId());
+				if (artifactCompare != 0) {
+					return artifactCompare;
+				}
+
+				if (a.getClassifier() != null && b.getClassifier() != null) {
+					return a.getClassifier().compareTo(b.getClassifier());
+				}
+
+				if (a.getClassifier() != null) {
+					return -1;
+				} else {
+					return 1;
+				}
+			}
+		});
+	}
+
 	private void cleanUpProject(List<Dependency> dependencyMgmt, Collection<org.apache.maven.model.Plugin> pluginMgmt, Properties properties) {
 		Project currentProject = shell.getCurrentProject();
-		DependencyFacet dependencyFacet = currentProject.getFacet(DependencyFacet.class);
 		final MavenCoreFacet mvnFacet = currentProject.getFacet(MavenCoreFacet.class);
 		DirectoryResource projectRoot = currentProject.getProjectRoot();
 		List<String> modules = mvnFacet.getMavenProject().getModules();
+
+		Model pom = mvnFacet.getPOM();
+		collectAndCleanPluginVersions(pluginMgmt, pom);
 		for (String string : modules) {
 			shell.setCurrentResource(projectRoot.getChild(string));
 			cleanUpProject(dependencyMgmt, pluginMgmt, properties);
 		}
 		shell.setCurrentResource(projectRoot);
 
-		Model pom = mvnFacet.getPOM();
 		collectAndCleanDependencies(dependencyMgmt, pom);
-
 		collectAndCleanProperties(properties, pom);
-		collectAndCleanPluginVersions(pluginMgmt, dependencyFacet, pom);
 		mvnFacet.setPOM(pom);
 	}
 
-	private void collectAndCleanPluginVersions(Collection<org.apache.maven.model.Plugin> pluginMgmt, DependencyFacet dependencyFacet, Model pom) {
+	private void collectAndCleanPluginVersions(Collection<org.apache.maven.model.Plugin> pluginMgmt, Model pom) {
+		if (pom.getBuild() != null && pom.getBuild().getPluginManagement() != null) {
+			pluginMgmt.addAll(pom.getBuild().getPluginManagement().getPlugins());
+			pom.getBuild().setPluginManagement(null);
+		}
 		if (pom.getBuild() != null && pom.getBuild().getPlugins() != null) {
 			List<org.apache.maven.model.Plugin> plugins = pom.getBuild().getPlugins();
 			for (org.apache.maven.model.Plugin plugin : plugins) {
 				org.apache.maven.model.Plugin pluginManaged = new org.apache.maven.model.Plugin();
 				pluginManaged.setArtifactId(plugin.getArtifactId());
 				pluginManaged.setGroupId(plugin.getGroupId());
-
-				if (plugin.getVersion() == null) {
-					List<org.jboss.forge.project.dependencies.Dependency> resolveAvailableVersions = dependencyFacet.resolveAvailableVersions(DependencyBuilder.create()
-							.setGroupId(plugin.getGroupId() == null ? "org.apache.maven.plugins": plugin.getGroupId())
-							.setArtifactId(plugin.getArtifactId())
-							.setVersion("[1.0,)"));
-					org.jboss.forge.project.dependencies.Dependency choiceTyped = prompt.promptChoiceTyped(
-							"Non uniqe Verions of a dependency. Select a version", resolveAvailableVersions);
-					pluginManaged.setVersion(choiceTyped.getVersion());
-				} else {
-					pluginManaged.setVersion(plugin.getVersion());
-				}
+				pluginManaged.setVersion(plugin.getVersion());
 				plugin.setVersion(null);
-				pluginMgmt.add(pluginManaged);
+				if (!pluginMgmt.contains(pluginManaged)) {
+					pluginMgmt.add(pluginManaged);
+				}
 			}
 		}
 	}
@@ -184,6 +233,5 @@ public class CleanupPomPlugin implements Plugin {
 			model.setDependencyManagement(null);
 		}
 	}
-
 
 }
