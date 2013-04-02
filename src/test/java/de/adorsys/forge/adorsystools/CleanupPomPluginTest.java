@@ -5,13 +5,13 @@ import org.jboss.forge.test.AbstractShellTest;
 import org.jboss.shrinkwrap.api.spec.JavaArchive;
 import org.junit.Test;
 
-public class CleanupDepPluginTest extends AbstractShellTest
+public class CleanupPomPluginTest extends AbstractShellTest
 {
    @Deployment
    public static JavaArchive getDeployment()
    {
       return AbstractShellTest.getDeployment()
-            .addPackages(true, CleanupDepPlugin.class.getPackage());
+            .addPackages(true, CleanupPomPlugin.class.getPackage());
    }
 
    @Test

@@ -36,8 +36,8 @@ import org.jboss.forge.shell.plugins.Plugin;
 /**
  *
  */
-@Alias("mvn-clean-dep")
-public class CleanupDepPlugin implements Plugin {
+@Alias("cleanup-mvn-pom")
+public class CleanupPomPlugin implements Plugin {
 
 	@Inject
 	private ShellPrompt prompt;
